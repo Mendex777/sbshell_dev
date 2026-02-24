@@ -197,12 +197,14 @@ if [ -n "$CLI_SUBSCRIPTION_URL" ]; then
 fi
 
 if [ -n "$SUBSCRIPTION_URL" ]; then
+    INSTALL_WITH_SUBSCRIPTION=1
     if ! validate_url "$SUBSCRIPTION_URL"; then
         echo -e "${RED}Ошибка: URL подписки должен начинаться с http:// или https://${NC}"
         exit 1
     fi
     echo -e "${GREEN}Используется SUBSCRIPTION_URL: $SUBSCRIPTION_URL${NC}"
 else
+    INSTALL_WITH_SUBSCRIPTION=0
     echo -e "${YELLOW}SUBSCRIPTION_URL не задан. Используется дефолтный TEMPLATE_URL (скрытый режим).${NC}"
 fi
 
@@ -379,7 +381,11 @@ download_scripts() {
 download_scripts || exit 1
 ###################################################################################################
 #Применяем правила фаервола
-step_run "Применение правил TProxy" bash "$SCRIPT_DIR/configure_tproxy.sh"
+if [ "$INSTALL_WITH_SUBSCRIPTION" -eq 1 ]; then
+    step_run "Применение правил TProxy" bash "$SCRIPT_DIR/configure_tproxy.sh"
+else
+    echo -e "${YELLOW}SUBSCRIPTION_URL not set: skip applying TProxy/nft during install.${NC}"
+fi
 
 ###################################################################################################
 # Включаем автозагрузку sing-box
@@ -562,60 +568,68 @@ backup_nft_rules "$NFTP_BACKUP_DIR" >>"$INSTALL_LOG" 2>&1
 nft flush ruleset
 
 # Формирование URL конфигурационного файла
-if [ -n "$SUBSCRIPTION_URL" ]; then
+if [ "$INSTALL_WITH_SUBSCRIPTION" -eq 1 ]; then
     FULL_URL="${BACKEND_URL}/config/${SUBSCRIPTION_URL}&file=${TEMPLATE_URL}"
     echo "Сформирован полный URL подписки: $FULL_URL"
 else
-    FULL_URL="${TEMPLATE_URL}"
-    echo "SUBSCRIPTION_URL не задан, используем шаблон напрямую: $FULL_URL"
+    CONFIG_READY=0
+    echo -e "${YELLOW}SUBSCRIPTION_URL not set: skip config generation/check and keep sing-box stopped.${NC}"
 fi
 
 # Резервное копирование текущего конфигурационного файла
 [ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_BACKUP_FILE"
 
-if curl -fsSL --connect-timeout 10 --max-time 30 "$FULL_URL" -o "$CONFIG_FILE" >>"$INSTALL_LOG" 2>&1; then
+if [ "$INSTALL_WITH_SUBSCRIPTION" -eq 1 ] && curl -fsSL --connect-timeout 10 --max-time 30 "$FULL_URL" -o "$CONFIG_FILE" >>"$INSTALL_LOG" 2>&1; then
     step_line "Загрузка config.json"
     echo -e "${GREEN}[OK]${NC}"
     step_line "Проверка config.json"
     if sing-box check -c "$CONFIG_FILE" >>"$INSTALL_LOG" 2>&1; then
         echo -e "${GREEN}[OK]${NC}"
+        CONFIG_READY=1
     else
         echo -e "${RED}[FAIL]${NC}"
+        CONFIG_READY=0
         echo -e "${RED}Проверка конфигурационного файла не пройдена, восстанавливаем резервную копию...${NC}"
         [ -f "$CONFIG_BACKUP_FILE" ] && cp "$CONFIG_BACKUP_FILE" "$CONFIG_FILE"
     fi
-else
+elif [ "$INSTALL_WITH_SUBSCRIPTION" -eq 1 ]; then
+    CONFIG_READY=0
     echo -e "${RED}Не удалось скачать конфигурационный файл, восстанавливаем резервную копию...${NC}"
     [ -f "$CONFIG_BACKUP_FILE" ] && cp "$CONFIG_BACKUP_FILE" "$CONFIG_FILE"
 fi
 write_stage "$STAGE_FILE" "config_ready"
 
-# Применяем правила firewall (возвращаем правила)
-step_run "Применение nftables.conf" nft -f /etc/sing-box/nft/nftables.conf
-
 # Изменение прав на каталог /etc/sing-box
 step_run "Установка владельца /etc/sing-box" chown -R sing-box:sing-box /etc/sing-box
 
-# Перезапуск sing-box и проверка статуса
-step_run "Перезапуск службы sing-box" systemctl restart sing-box
+if [ "$CONFIG_READY" -eq 1 ]; then
+    step_run "Применение nftables.conf" nft -f /etc/sing-box/nft/nftables.conf
+    step_run "Перезапуск службы sing-box" systemctl restart sing-box
 
-if systemctl is-active --quiet sing-box; then
-    echo -e "${GREEN}sing-box успешно запущен${NC}"
-    write_stage "$STAGE_FILE" "singbox_active"
+    if systemctl is-active --quiet sing-box; then
+        echo -e "${GREEN}sing-box успешно запущен${NC}"
+        write_stage "$STAGE_FILE" "singbox_active"
+    else
+        echo -e "${RED}Не удалось запустить sing-box${NC}"
+    fi
 else
-    echo -e "${RED}Не удалось запустить sing-box${NC}"
+    echo -e "${YELLOW}No valid config.json: stopping sing-box and flushing nftables rules.${NC}"
+    systemctl stop sing-box >/dev/null 2>&1 || true
+    systemctl disable sing-box nftables-singbox.service >/dev/null 2>&1 || true
+    nft flush ruleset >/dev/null 2>&1 || true
 fi
 
 
 ###################################################################################################
 
 
-if systemctl is-active --quiet sing-box; then
+if [ "$CONFIG_READY" -eq 1 ] && systemctl is-active --quiet sing-box; then
     write_stage "$STAGE_FILE" "completed"
     echo -e "${GREEN}Автоматическая установка завершена успешно!${NC}"
     echo -e "${GREEN}Для запуска меню введите: bash $SCRIPT_DIR/menu.sh${NC}"
 else
-    echo -e "${RED}Автоматическая установка завершена с ошибками.${NC}"
-    echo -e "${YELLOW}Проверьте подключение к интернету и повторите попытку.${NC}"
-    exit 1
+    write_stage "$STAGE_FILE" "completed_no_config"
+    echo -e "${YELLOW}Установка завершена: компоненты установлены, но sing-box не запущен (нет валидного config.json).${NC}"
+    echo -e "${YELLOW}Сформируйте конфиг вручную через меню и затем запустите sing-box.${NC}"
+    echo -e "${GREEN}Для запуска меню введите: bash $SCRIPT_DIR/menu.sh${NC}"
 fi
