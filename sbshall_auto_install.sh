@@ -384,7 +384,7 @@ download_scripts || exit 1
 if [ "$INSTALL_WITH_SUBSCRIPTION" -eq 1 ]; then
     step_run "Применение правил TProxy" bash "$SCRIPT_DIR/configure_tproxy.sh"
 else
-    echo -e "${YELLOW}SUBSCRIPTION_URL not set: skip applying TProxy/nft during install.${NC}"
+    echo -e "${YELLOW}SUBSCRIPTION_URL не задан: пропускаем применение TProxy/nft во время установки.${NC}"
 fi
 
 ###################################################################################################
@@ -573,7 +573,7 @@ if [ "$INSTALL_WITH_SUBSCRIPTION" -eq 1 ]; then
     echo "Сформирован полный URL подписки: $FULL_URL"
 else
     CONFIG_READY=0
-    echo -e "${YELLOW}SUBSCRIPTION_URL not set: skip config generation/check and keep sing-box stopped.${NC}"
+    echo -e "${YELLOW}SUBSCRIPTION_URL не задан: пропускаем формирование/проверку config.json и оставляем sing-box остановленным.${NC}"
 fi
 
 # Резервное копирование текущего конфигурационного файла
@@ -613,7 +613,7 @@ if [ "$CONFIG_READY" -eq 1 ]; then
         echo -e "${RED}Не удалось запустить sing-box${NC}"
     fi
 else
-    echo -e "${YELLOW}No valid config.json: stopping sing-box and flushing nftables rules.${NC}"
+    echo -e "${YELLOW}Валидный config.json отсутствует: останавливаем sing-box и очищаем правила nftables.${NC}"
     systemctl stop sing-box >/dev/null 2>&1 || true
     systemctl disable sing-box nftables-singbox.service >/dev/null 2>&1 || true
     nft flush ruleset >/dev/null 2>&1 || true
