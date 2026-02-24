@@ -6,8 +6,9 @@ SCRIPT_DIR="/etc/sing-box/scripts"
 
 
 BACKEND_URL=http://localhost:5000
-SUBSCRIPTION_URL=$SUBSCRIPTION_URL
+SUBSCRIPTION_URL="${SUBSCRIPTION_URL:-}"
 TEMPLATE_URL=https://raw.githubusercontent.com/Mendex777/sbshell_3/refs/heads/main/config_template/my/config_tproxy_25_07_2025_v1.json
+CLI_SUBSCRIPTION_URL="${1:-}"
 
 # Базовый URL для скачивания скриптов
 BASE_URL="https://raw.githubusercontent.com/Mendex777/sbshell_3/refs/heads/main/debian"
@@ -97,20 +98,22 @@ fi
 
 echo -e "${GREEN}Проверки пройдены успешно. Ubuntu обнаружена, права root подтверждены.${NC}"
 
-# Запрос URL подписки у пользователя
-echo -e "${YELLOW}Введите URL подписки (subscription URL):${NC}"
-read -rp "URL подписки: " SUBSCRIPTION_URL
-
-if [ -z "$SUBSCRIPTION_URL" ]; then
-    echo -e "${RED}Ошибка: URL подписки не может быть пустым.${NC}"
-    exit 1
-fi
-if ! validate_url "$SUBSCRIPTION_URL"; then
-    echo -e "${RED}Ошибка: URL подписки должен начинаться с http:// или https://${NC}"
-    exit 1
+# Скрытая фича:
+# 1) если URL передан первым аргументом, используем его как subscription
+# 2) если не передан, продолжаем установку с TEMPLATE_URL без подписки
+if [ -n "$CLI_SUBSCRIPTION_URL" ]; then
+    SUBSCRIPTION_URL="$CLI_SUBSCRIPTION_URL"
 fi
 
-echo -e "${GREEN}URL подписки установлен: $SUBSCRIPTION_URL${NC}"
+if [ -n "$SUBSCRIPTION_URL" ]; then
+    if ! validate_url "$SUBSCRIPTION_URL"; then
+        echo -e "${RED}Ошибка: URL подписки должен начинаться с http:// или https://${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Используется SUBSCRIPTION_URL: $SUBSCRIPTION_URL${NC}"
+else
+    echo -e "${YELLOW}SUBSCRIPTION_URL не задан. Используется дефолтный TEMPLATE_URL (скрытый режим).${NC}"
+fi
 
 # Проверка включения IP-перенаправления для IPv4 и IPv6
 ipv4_forward=$(sysctl net.ipv4.ip_forward | awk '{print $3}')
@@ -501,9 +504,14 @@ EOF
 backup_nft_rules "$NFTP_BACKUP_DIR"
 nft flush ruleset
 
-# Формирование полного URL конфигурационного файла
-FULL_URL="${BACKEND_URL}/config/${SUBSCRIPTION_URL}&file=${TEMPLATE_URL}"
-echo "Сформирован полный URL подписки: $FULL_URL"
+# Формирование URL конфигурационного файла
+if [ -n "$SUBSCRIPTION_URL" ]; then
+    FULL_URL="${BACKEND_URL}/config/${SUBSCRIPTION_URL}&file=${TEMPLATE_URL}"
+    echo "Сформирован полный URL подписки: $FULL_URL"
+else
+    FULL_URL="${TEMPLATE_URL}"
+    echo "SUBSCRIPTION_URL не задан, используем шаблон напрямую: $FULL_URL"
+fi
 
 # Резервное копирование текущего конфигурационного файла
 [ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_BACKUP_FILE"
