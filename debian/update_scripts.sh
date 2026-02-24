@@ -96,6 +96,7 @@ SCRIPTS=(
     "check_config.sh"
     "update_scripts.sh"
     "update_ui.sh"
+    "doctor.sh"
     "menu.sh"
 )
 

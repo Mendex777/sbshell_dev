@@ -45,6 +45,7 @@ SCRIPTS=(
     "check_config.sh"          # Проверка конфигурационных файлов
     "update_scripts.sh"        # Обновление скриптов
     "update_ui.sh"             # Установка/обновление/проверка панели управления
+    "doctor.sh"                # Диагностика и проверки
     "menu.sh"                  # Главное меню
 )
 
@@ -176,6 +177,7 @@ create_aliases() {
     alias sbinstall="sudo bash $SCRIPT_DIR/install_singbox.sh"
     alias sbui="bash $SCRIPT_DIR/update_ui.sh"
     alias sbstatus="sudo bash $SCRIPT_DIR/status_check.sh"
+    alias sbdoctor="sudo bash $SCRIPT_DIR/doctor.sh"
     alias sbapi='curl -fsSL "https://raw.githubusercontent.com/Mendex777/zashboard/refs/heads/test/api%20web%20editor/install-api.sh" -o "/tmp/install-api.sh" && chmod +x "/tmp/install-api.sh" && bash "/tmp/install-api.sh" && rm -f "/tmp/install-api.sh"'
     
     echo -e "${GREEN}Алиасы созданы успешно!${NC}"
@@ -195,6 +197,7 @@ create_aliases() {
     echo -e "  sbinstall  - Установка/обновление sing-box"
     echo -e "  sbui       - Обновление панели управления"
     echo -e "  sbstatus   - Проверка состояния системы"
+    echo -e "  sbdoctor   - Диагностика окружения"
     echo -e "  sbapi      - Установка API панели управления"
 }
 
@@ -226,6 +229,7 @@ show_menu() {
     echo -e "${GREEN}12. Обновление панели управления${NC}"
     echo -e "${GREEN}13. Проверка состояния системы${NC}"
     echo -e "${GREEN}14. Установка API панели управления${NC}"
+    echo -e "${GREEN}15. Диагностика (doctor)${NC}"
     echo -e "${GREEN}0. Выход${NC}"
     echo -e "${CYAN}=============================================${NC}"
 }
@@ -289,6 +293,9 @@ handle_choice() {
             else
                 echo -e "${RED}Не удалось загрузить скрипт установки API панели${NC}"
             fi
+            ;;
+        15)
+            sudo bash "$SCRIPT_DIR/doctor.sh"
             ;;
         0)
             exit 0

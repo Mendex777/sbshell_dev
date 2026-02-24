@@ -1,4 +1,5 @@
 #!/bin/bash
+set -Eeuo pipefail
 
 # Каталог для загрузки скрипта
 SCRIPT_DIR="/etc/sing-box/scripts"
@@ -9,13 +10,65 @@ SUBSCRIPTION_URL=$SUBSCRIPTION_URL
 TEMPLATE_URL=https://raw.githubusercontent.com/Mendex777/sbshell_3/refs/heads/main/config_template/my/config_tproxy_25_07_2025_v1.json
 
 # Базовый URL для скачивания скриптов
-BASE_URL="https://raw.githubusercontent.com/Mendex777/sbshell2/refs/heads/main/debian"
+BASE_URL="https://raw.githubusercontent.com/Mendex777/sbshell_3/refs/heads/main/debian"
+NFTP_BACKUP_DIR="/etc/sing-box/nft/backup"
 
 # Определение цветов
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # Без цвета
+STATE_DIR="/var/lib/sbshell"
+STAGE_FILE="$STATE_DIR/install.stage"
+COMMON_LIB="/home/tdcadmin/sbshell/lib/common.sh"
+CONFIG_FILE="/etc/sing-box/config.json"
+CONFIG_BACKUP_FILE="/etc/sing-box/config.json.backup"
+
+on_error() {
+    local line="$1"
+    local stage="unknown"
+    if [ -f "$STAGE_FILE" ]; then
+        stage=$(cat "$STAGE_FILE")
+    fi
+    echo -e "${RED}Ошибка на строке ${line} (stage: ${stage}). Установка прервана.${NC}"
+    rollback_install "$stage"
+}
+trap 'on_error $LINENO' ERR
+
+mkdir -p "$STATE_DIR"
+if [ -f "$COMMON_LIB" ]; then
+    # shellcheck disable=SC1090
+    source "$COMMON_LIB"
+else
+    echo -e "${RED}Не найден общий модуль: $COMMON_LIB${NC}"
+    exit 1
+fi
+
+rollback_install() {
+    local stage="${1:-unknown}"
+    echo -e "${YELLOW}Запуск rollback для stage: ${stage}${NC}"
+
+    if [ -f "$CONFIG_BACKUP_FILE" ]; then
+        cp -f "$CONFIG_BACKUP_FILE" "$CONFIG_FILE" || true
+        echo -e "${YELLOW}Восстановлен backup config.json${NC}"
+    fi
+
+    local latest_nft_backup=""
+    latest_nft_backup=$(ls -1t "$NFTP_BACKUP_DIR"/ruleset-*.nft 2>/dev/null | head -n1 || true)
+    if [ -n "$latest_nft_backup" ]; then
+        nft -f "$latest_nft_backup" || true
+        echo -e "${YELLOW}Восстановлены правила nft из backup${NC}"
+    fi
+
+    systemctl daemon-reload || true
+}
+
+echo -e "${YELLOW}Preflight-проверка окружения...${NC}"
+write_stage "$STAGE_FILE" "preflight_start"
+for cmd in awk grep sed cut curl wget sysctl nft systemctl tee; do
+    require_cmd "$cmd"
+done
+write_stage "$STAGE_FILE" "preflight_ok"
 
 # Проверка операционной системы
 if ! grep -qi 'ubuntu' /etc/os-release; then
@@ -50,6 +103,10 @@ read -rp "URL подписки: " SUBSCRIPTION_URL
 
 if [ -z "$SUBSCRIPTION_URL" ]; then
     echo -e "${RED}Ошибка: URL подписки не может быть пустым.${NC}"
+    exit 1
+fi
+if ! validate_url "$SUBSCRIPTION_URL"; then
+    echo -e "${RED}Ошибка: URL подписки должен начинаться с http:// или https://${NC}"
     exit 1
 fi
 
@@ -174,8 +231,10 @@ sudo systemctl enable docker
 
 # Очистка правил nft
 echo -e "${YELLOW}Очистка правил nftables...${NC}"
+backup_nft_rules "$NFTP_BACKUP_DIR"
 sudo nft flush ruleset
 echo -e "${GREEN}Правила nftables очищены${NC}"
+write_stage "$STAGE_FILE" "docker_ready"
 
 # Запуск контейнера sing-box-subscribe
 echo -e "${YELLOW}Запуск контейнера sing-box-subscribe...${NC}"
@@ -212,7 +271,6 @@ SCRIPTS=(
     "manual_update.sh"         # Ручное обновление конфигурации
     "auto_update.sh"           # Автоматическое обновление конфигурации
     "configure_tproxy.sh"      # Настройка режима TProxy
-    "configure_tun.sh"         # Настройка режима TUN
     "start_singbox.sh"         # Запуск Sing-box вручную
     "stop_singbox.sh"          # Остановка Sing-box вручную
     "clean_nft.sh"             # Очистка правил nftables
@@ -223,6 +281,7 @@ SCRIPTS=(
     "check_config.sh"          # Проверка конфигурационных файлов
     "update_scripts.sh"        # Обновление скриптов
     "update_ui.sh"             # Установка/обновление/проверка панели управления
+    "doctor.sh"                # Диагностика и проверка состояния
     "menu.sh"                  # Главное меню
 )
 
@@ -256,7 +315,7 @@ download_scripts() {
 }
 
 # Запуск загрузки скриптов
-download_scripts
+download_scripts || exit 1
 ###################################################################################################
 #Применяем правила фаервола
 bash "$SCRIPT_DIR/configure_tproxy.sh"
@@ -272,6 +331,10 @@ apply_firewall() {
         echo "Применение правил файервола для режима TProxy..."
         bash /etc/sing-box/scripts/configure_tproxy.sh
     elif [ "$MODE" = "TUN" ]; then
+        if [ ! -x /etc/sing-box/scripts/configure_tun.sh ]; then
+            echo "Скрипт configure_tun.sh отсутствует, применение правил TUN невозможно."
+            exit 1
+        fi
         echo "Применение правил файервола для режима TUN..."
         bash /etc/sing-box/scripts/configure_tun.sh
     else
@@ -304,10 +367,9 @@ RemainAfterExit=yes
 WantedBy=multi-user.target
 EOF'
     
-    # Вносим изменения в sing-box.service, чтобы он зависел от nftables-singbox.service
-    sudo bash -c "sed -i '/After=network.target nss-lookup.target network-online.target/a After=nftables-singbox.service' /usr/lib/systemd/system/sing-box.service"
-    sudo bash -c "sed -i '/^Requires=/d' /usr/lib/systemd/system/sing-box.service"
-    sudo bash -c "sed -i '/\[Unit\]/a Requires=nftables-singbox.service' /usr/lib/systemd/system/sing-box.service"
+    # Используем drop-in вместо правки vendor unit
+    ensure_singbox_dropin
+    remove_legacy_singbox_unit_edits
     
     # Перезагружаем конфигурацию systemd и включаем сервисы
     sudo systemctl daemon-reload
@@ -317,6 +379,7 @@ EOF'
     
     if [ "$cmd_status" -eq 0 ]; then
         echo -e "${GREEN}Автозапуск успешно включён.${NC}"
+        write_stage "$STAGE_FILE" "autostart_ready"
     else
         echo -e "${RED}Ошибка при включении автозапуска.${NC}"
         exit 1
@@ -330,7 +393,7 @@ echo -e "${YELLOW}Создание файлов конфигурации...${NC}
 
 DEFAULTS_FILE="/etc/sing-box/defaults.conf"
 
-cat > $DEFAULTS_FILE <<EOF
+cat > "$DEFAULTS_FILE" <<EOF
 BACKEND_URL=$BACKEND_URL
 SUBSCRIPTION_URL=$SUBSCRIPTION_URL
 TPROXY_TEMPLATE_URL=$TEMPLATE_URL
@@ -377,7 +440,6 @@ cat > /etc/sing-box/rules/custom_list.json <<EOF
   "rules": [
     {
       "domain_suffix": [
-//Прочая фигня
         "mozilla.org",
         "veeam.com",
         "kino.pub",
@@ -385,8 +447,6 @@ cat > /etc/sing-box/rules/custom_list.json <<EOF
         "rutor.org",
         "zona.media",
         "skvalex.dev",
-
-//play market
         "googleplay.com",
         "play-fe.googleapis.com",
         "play-games.googleusercontent.com",
@@ -394,32 +454,12 @@ cat > /etc/sing-box/rules/custom_list.json <<EOF
         "play.google.com",
         "play.googleapis.com",
         "xn--ngstr-lra8j.com",
-
-//intel.com
         "intel.com",
-
-//hashicorp.com
         "hashicorp.com",
-
-//bitwarden.com
         "bitwarden.com",
-
-//repack.me
         "repack.me",
-
-//nzxt.com
         "nzxt.com",
-
-//Lampac
         "cub.red",
-//        "cookielaw.org",
-//        "onetrust.com",
-//        "gravatar.com",
-//        "doubleclick.net",
-//        "googletagmanager.com",
-//        "kurwa-bober.ninja",
-
-//trae.ai
         "byteintlapi.com",
         "byteoversea.com",
         "bytednsdoc.com",
@@ -428,14 +468,8 @@ cat > /etc/sing-box/rules/custom_list.json <<EOF
         "trae.ai",
         "trae.com.cn",
         "mchost.guru",
-
-//huggingface.co
         "huggingface.co",
-
-//copilot
         "copilot.microsoft.com",
-
-//Проверка ip на 2ip.ru
         "2ip.ru"
       ]
     },
@@ -447,14 +481,11 @@ cat > /etc/sing-box/rules/custom_list.json <<EOF
       ]
     },
 
-    // ------------------------------
-    // IP и диапазоны
-    // ------------------------------
     {
       "ip_cidr": [
-        "5.35.91.158",   // одиночный IP kara.su
-        "87.236.16.19/32"    // диапазон IP kara.su
-      ],
+        "5.35.91.158",
+        "87.236.16.19/32"
+      ]
     }
   ]
 }
@@ -467,6 +498,7 @@ EOF
 #Блок формирования конфигурации sing-box из подпискки и конфига
 
 #Отчищаем правила nft (что бы не мешать докеру)
+backup_nft_rules "$NFTP_BACKUP_DIR"
 nft flush ruleset
 
 # Формирование полного URL конфигурационного файла
@@ -474,18 +506,19 @@ FULL_URL="${BACKEND_URL}/config/${SUBSCRIPTION_URL}&file=${TEMPLATE_URL}"
 echo "Сформирован полный URL подписки: $FULL_URL"
 
 # Резервное копирование текущего конфигурационного файла
-[ -f "/etc/sing-box/config.json" ] && cp /etc/sing-box/config.json /etc/sing-box/config.json.backup
+[ -f "$CONFIG_FILE" ] && cp "$CONFIG_FILE" "$CONFIG_BACKUP_FILE"
 
-if curl -L --connect-timeout 10 --max-time 30 "$FULL_URL" -o /etc/sing-box/config.json; then
+if curl -L --connect-timeout 10 --max-time 30 "$FULL_URL" -o "$CONFIG_FILE"; then
     echo -e "${GREEN}Обновление конфигурационного файла прошло успешно!${NC}"
-    if ! sing-box check -c /etc/sing-box/config.json; then
+    if ! sing-box check -c "$CONFIG_FILE"; then
         echo -e "${RED}Проверка конфигурационного файла не пройдена, восстанавливаем резервную копию...${NC}"
-        [ -f "/etc/sing-box/config.json.backup" ] && cp /etc/sing-box/config.json.backup /etc/sing-box/config.json
+        [ -f "$CONFIG_BACKUP_FILE" ] && cp "$CONFIG_BACKUP_FILE" "$CONFIG_FILE"
     fi
 else
     echo -e "${RED}Не удалось скачать конфигурационный файл, восстанавливаем резервную копию...${NC}"
-    [ -f "/etc/sing-box/config.json.backup" ] && cp /etc/sing-box/config.json.backup /etc/sing-box/config.json
+    [ -f "$CONFIG_BACKUP_FILE" ] && cp "$CONFIG_BACKUP_FILE" "$CONFIG_FILE"
 fi
+write_stage "$STAGE_FILE" "config_ready"
 
 # Применяем правила firewall (возвращаем правила)
 nft -f /etc/sing-box/nft/nftables.conf
@@ -498,6 +531,7 @@ sudo systemctl restart sing-box
 
 if systemctl is-active --quiet sing-box; then
     echo -e "${GREEN}sing-box успешно запущен${NC}"
+    write_stage "$STAGE_FILE" "singbox_active"
 else
     echo -e "${RED}Не удалось запустить sing-box${NC}"
 fi
@@ -506,7 +540,8 @@ fi
 ###################################################################################################
 
 
-if [ $? -eq 0 ]; then
+if systemctl is-active --quiet sing-box; then
+    write_stage "$STAGE_FILE" "completed"
     echo -e "${GREEN}Автоматическая установка завершена успешно!${NC}"
     echo -e "${GREEN}Для запуска меню введите: bash $SCRIPT_DIR/menu.sh${NC}"
 else
