@@ -143,6 +143,16 @@ step_run_bash() {
     fi
 }
 
+ensure_singbox_compat_dropin() {
+    local dropin_dir="/etc/systemd/system/sing-box.service.d"
+    local dropin_file="$dropin_dir/20-compat-deprecated.conf"
+    mkdir -p "$dropin_dir"
+    cat > "$dropin_file" <<EOF
+[Service]
+Environment=ENABLE_DEPRECATED_SPECIAL_OUTBOUNDS=true
+EOF
+}
+
 init_log
 echo -e "${YELLOW}Лог установки: $INSTALL_LOG${NC}"
 echo -e "${YELLOW}Проверка окружения...${NC}"
@@ -395,6 +405,8 @@ apply_firewall() {
 }
 
 # Проверка, включён ли уже автозапуск
+ensure_singbox_compat_dropin
+step_run "Обновление unit-файлов systemd" systemctl daemon-reload
 if systemctl is-enabled sing-box.service >/dev/null 2>&1 && systemctl is-enabled nftables-singbox.service >/dev/null 2>&1; then
     echo -e "${GREEN}Автозапуск уже включён, никаких действий не требуется.${NC}"
 else
@@ -423,7 +435,7 @@ EOF'
     remove_legacy_singbox_unit_edits
     
     # Перезагружаем конфигурацию systemd и включаем сервисы
-    if systemctl daemon-reload >>"$INSTALL_LOG" 2>&1 && systemctl enable nftables-singbox.service sing-box.service >>"$INSTALL_LOG" 2>&1 && systemctl start nftables-singbox.service sing-box.service >>"$INSTALL_LOG" 2>&1; then
+    if systemctl enable nftables-singbox.service sing-box.service >>"$INSTALL_LOG" 2>&1 && systemctl start nftables-singbox.service sing-box.service >>"$INSTALL_LOG" 2>&1; then
         echo -e "${GREEN}[OK]${NC}"
         write_stage "$STAGE_FILE" "autostart_ready"
     else
@@ -607,5 +619,3 @@ else
     echo -e "${YELLOW}Проверьте подключение к интернету и повторите попытку.${NC}"
     exit 1
 fi
-
-
