@@ -7,7 +7,7 @@ SCRIPT_DIR="/etc/sing-box/scripts"
 
 BACKEND_URL=http://localhost:5000
 SUBSCRIPTION_URL="${SUBSCRIPTION_URL:-}"
-TEMPLATE_URL=https://raw.githubusercontent.com/Mendex777/sbshell_3/refs/heads/main/config_template/my/config_tproxy_25_07_2025_v1.json
+TEMPLATE_URL=https://raw.githubusercontent.com/Mendex777/sbshell_3/refs/heads/main/config_template/my/config_tproxy_27_05_2025_v3.json
 CLI_SUBSCRIPTION_URL="${1:-}"
 
 # Базовый URL для скачивания скриптов
@@ -41,8 +41,52 @@ if [ -f "$COMMON_LIB" ]; then
     # shellcheck disable=SC1090
     source "$COMMON_LIB"
 else
-    echo -e "${RED}Не найден общий модуль: $COMMON_LIB${NC}"
-    exit 1
+    # Fallback для запуска через one-liner (curl | bash), когда lib/common.sh недоступен.
+    require_cmd() {
+        local cmd="$1"
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo -e "${RED}Отсутствует обязательная команда: ${cmd}${NC}"
+            exit 1
+        fi
+    }
+
+    validate_url() {
+        local url="$1"
+        [[ "$url" =~ ^https?:// ]]
+    }
+
+    backup_nft_rules() {
+        local backup_dir="$1"
+        mkdir -p "$backup_dir"
+        if nft list ruleset >/dev/null 2>&1; then
+            nft list ruleset > "$backup_dir/ruleset-$(date +%F_%H-%M-%S).nft" || true
+        fi
+    }
+
+    write_stage() {
+        local stage_file="$1"
+        local stage="$2"
+        echo "$stage" > "$stage_file"
+    }
+
+    ensure_singbox_dropin() {
+        local dropin_dir="/etc/systemd/system/sing-box.service.d"
+        local dropin_file="$dropin_dir/10-nftables-singbox.conf"
+        mkdir -p "$dropin_dir"
+        cat > "$dropin_file" <<EOF
+[Unit]
+After=nftables-singbox.service
+Requires=nftables-singbox.service
+EOF
+    }
+
+    remove_legacy_singbox_unit_edits() {
+        local unit_file="/usr/lib/systemd/system/sing-box.service"
+        if [ -f "$unit_file" ]; then
+            sed -i '/After=nftables-singbox.service/d' "$unit_file"
+            sed -i '/Requires=nftables-singbox.service/d' "$unit_file"
+        fi
+    }
 fi
 
 rollback_install() {
@@ -287,6 +331,7 @@ SCRIPTS=(
     "doctor.sh"                # Диагностика и проверка состояния
     "menu.sh"                  # Главное меню
 )
+OPTIONAL_SCRIPTS=("doctor.sh")
 
 # Функция для загрузки скриптов
 download_scripts() {
@@ -299,8 +344,19 @@ download_scripts() {
             chmod +x "$SCRIPT_DIR/$SCRIPT"
             echo -e "${GREEN}✓ $SCRIPT загружен успешно${NC}"
         else
-            echo -e "${RED}✗ Ошибка загрузки $SCRIPT${NC}"
-            failed_scripts+=("$SCRIPT")
+            is_optional=0
+            for optional in "${OPTIONAL_SCRIPTS[@]}"; do
+                if [ "$optional" = "$SCRIPT" ]; then
+                    is_optional=1
+                    break
+                fi
+            done
+            if [ "$is_optional" -eq 1 ]; then
+                echo -e "${YELLOW}⚠ $SCRIPT не загружен (опционально), продолжаем.${NC}"
+            else
+                echo -e "${RED}✗ Ошибка загрузки $SCRIPT${NC}"
+                failed_scripts+=("$SCRIPT")
+            fi
         fi
     done
     
