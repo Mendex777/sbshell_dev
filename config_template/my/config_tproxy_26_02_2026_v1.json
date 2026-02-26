@@ -1,0 +1,138 @@
+{
+  "log": {
+    "disabled": false,
+    "level": "info",
+    "timestamp": true
+  },
+  
+  "experimental": {
+    "clash_api": {
+      "external_controller": "0.0.0.0:9095",
+      "external_ui": "/etc/sing-box/ui",
+      "secret": "",
+      "external_ui_download_url": "https://github.com/Mendex777/zashboard/archive/refs/heads/gh-pages.zip",
+      "external_ui_download_detour": "➡️ Direct Connection",
+      "default_mode": "rule"
+    },
+    "cache_file": {
+      "enabled": true,
+      "path": "/etc/sing-box/cache.db",
+      "store_fakeip": false
+    }
+  },
+
+  "dns": {
+    "servers": [
+      {"tag": "dns_direct", "type": "udp", "server": "192.168.1.1"},
+      {"tag": "dns_proxy", "type": "tls", "server": "8.8.8.8", "detour": "🐸 Manual Switch"}
+    ],
+    "rules": [
+      {"clash_mode": "Direct", "server": "dns_direct"},
+      {"clash_mode": "Global", "server": "dns_proxy"},
+      {"rule_set": ["geosite-custom", "geosite-discord", "geosite-meta", "geosite-chat", "geosite-whatsapp", "geosite-youtube"], "server": "dns_proxy"},
+      {"rule_set": ["geosite-steam", "geosite-google", "geosite-github", "geosite-telegram", "geosite-tiktok", "geosite-netflix", "geosite-apple", "geosite-microsoft", "geosite-onedrive"], "server": "dns_proxy"}
+    ],
+    "final": "dns_direct",
+    "strategy": "ipv4_only",
+    "disable_cache": true
+  },
+
+  "inbounds": [
+    {
+      "type": "tproxy",
+      "tag": "tproxy-in",
+      "listen": "0.0.0.0",
+      "listen_port": 7895
+    }
+  ],
+
+  "outbounds": [
+    { "tag": "🚀 Node Selection", "type": "selector", "outbounds": ["🐸 Manual Switch", "➡️ Direct Connection"] },
+    { "tag": "🧩 Сustom list", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🎙️ Discord", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🌐 Meta", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🎮 Steam", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "💬 WhatsApp", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+
+    { "tag": "📹 YouTube", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🤖 OpenAI", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🍀 Google", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "👨‍💻 Github", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🪟 Microsoft", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🐬 OneDrive", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🎵 TikTok", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🎥 Netflix", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "📲 Telegram", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🍏 Apple", "type": "selector", "outbounds": ["🚀 Node Selection", "🐸 Manual Switch", "➡️ Direct Connection", "🇷🇺 Russia Nodes", "🇩🇪 Germany Nodes", "🇪🇪 Estonia Nodes", "🇺🇸 US Nodes", "🇫🇮 Finland Nodes", "🇫🇷 France Nodes", "🇸🇪 Sweden Nodes", "⚡️ High-Speed Nodes"] },
+    { "tag": "🐸 Manual Switch", "type": "selector", "outbounds": ["{all}"] },
+
+    { "tag": "🇷🇺 Russia Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇷🇺|RU |ru |俄|俄罗斯|Russia|Russian|Россия)"] }] },
+    { "tag": "🇩🇪 Germany Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇩🇪|DE |de |Germany|德国|德|Германия)"] }] },
+    { "tag": "🇪🇪 Estonia Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇪🇪|EE |ee |Estonia|Эстония|爱沙尼亚)"] }] },
+    { "tag": "🇺🇸 US Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇺🇸|US |us |United States|USA|美国|美|США)"] }] },
+    { "tag": "🇫🇮 Finland Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇫🇮|FI |fi |Finland|Финляндия|芬兰)"] }] },
+    { "tag": "🇫🇷 France Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇫🇷|FR |fr |France|法国|Франция)"] }] },
+    { "tag": "🇸🇪 Sweden Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["(🇸🇪|SE |se |Sweden|瑞典|Швеция)"] }] },
+    { "tag": "⚡️ High-Speed Nodes", "type": "selector", "outbounds": ["🐸 Manual Switch", "{all}"], "filter": [{ "action": "include", "keywords": ["10GB/s", "25GB/s"] }] },
+
+    { "tag": "GLOBAL", "type": "selector", "outbounds": ["{all}"] },
+    { "tag": "➡️ Direct Connection", "type": "direct" }
+  ],
+
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": { "server": "dns_direct", "strategy": "ipv4_only"},
+    "final": "🚀 Node Selection",
+    "default_mark": 666,
+    "rules": [
+      {"action": "sniff"},
+      {"protocol": "dns", "action": "hijack-dns"},
+      {"clash_mode": "direct", "outbound": "➡️ Direct Connection"},
+      {"clash_mode": "global", "outbound": "GLOBAL"},
+      {"rule_set": ["geosite-private", "geoip-private"], "outbound": "➡️ Direct Connection"},
+      {"rule_set": "geosite-custom", "outbound": "🧩 Сustom list"},
+      {"rule_set": "geosite-meta", "outbound": "🌐 Meta"},
+      {"rule_set": "geosite-steam", "outbound": "🎮 Steam"},
+      {"rule_set": ["geoip-whatsapp", "geosite-whatsapp"], "outbound": "💬 WhatsApp"},
+      {"rule_set": ["geoip-discord", "geosite-discord"], "outbound": "🎙️ Discord"},
+      {"rule_set": "geosite-chat", "outbound": "🤖 OpenAI"},
+      {"rule_set": "geosite-youtube", "outbound": "📹 YouTube"},
+      {"rule_set": "geosite-github", "outbound": "👨‍💻 Github"},
+      {"rule_set": ["geosite-google", "geoip-google"], "outbound": "🍀 Google"},
+      {"rule_set": ["geosite-telegram", "geoip-telegram"], "outbound": "📲 Telegram"},
+      {"rule_set": "geosite-tiktok", "outbound": "🎵 TikTok"},
+      {"rule_set": ["geosite-netflix", "geoip-netflix"], "outbound": "🎥 Netflix"},
+      {"rule_set": ["geosite-apple", "geoip-apple"], "outbound": "🍏 Apple"},
+      {"rule_set": "geosite-onedrive", "outbound": "🐬 OneDrive"},
+      {"rule_set": "geosite-microsoft", "outbound": "🪟 Microsoft"}
+    ],
+
+    "rule_set": [
+      { "tag": "geosite-custom", "type": "local", "format": "source", "path": "/etc/sing-box/rules/custom_list.json"},
+      { "tag": "geosite-discord", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/discord.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-meta", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/meta.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-steam", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/steam.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-whatsapp", "type": "remote", "format": "binary", "url": "https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/sing/geo/geosite/whatsapp.srs", "download_detour": "➡️ Direct Connection" },
+
+      { "tag": "geosite-chat", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/category-ai-!cn.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-youtube", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/youtube.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-google", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/google.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-github", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/github.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-telegram", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/telegram.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-tiktok", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/tiktok.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-netflix", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/netflix.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-apple", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/apple.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-microsoft", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/microsoft.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-onedrive", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/onedrive.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geosite-private", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/private.srs", "download_detour": "➡️ Direct Connection" },
+
+      { "tag": "geoip-whatsapp", "type": "remote", "format": "binary", "url": "https://github.com/Mendex777/sbshell/raw/refs/heads/master/geoip/whatsapp.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geoip-discord", "type": "remote", "format": "binary", "url": "https://github.com/Mendex777/sbshell/raw/refs/heads/master/geoip/discord.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geoip-google", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/google.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geoip-telegram", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/telegram.srs", "download_detour": "➡️ Direct Connection" },     
+      { "tag": "geoip-netflix", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/netflix.srs", "download_detour": "➡️ Direct Connection" },     
+      { "tag": "geoip-apple", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo-lite/geoip/apple.srs", "download_detour": "➡️ Direct Connection" },
+      { "tag": "geoip-private", "type": "remote", "format": "binary", "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geoip/private.srs", "download_detour": "➡️ Direct Connection" }
+    ]
+  }
+}
