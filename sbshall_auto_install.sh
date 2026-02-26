@@ -7,7 +7,7 @@ SCRIPT_DIR="/etc/sing-box/scripts"
 
 BACKEND_URL=http://localhost:5000
 SUBSCRIPTION_URL="${SUBSCRIPTION_URL:-}"
-TEMPLATE_URL=https://raw.githubusercontent.com/Mendex777/sbshell_dev/refs/heads/main/config_template/my/config_tproxy_19_02_2026_v1.json
+TEMPLATE_URL=https://raw.githubusercontent.com/Mendex777/sbshell_dev/refs/heads/main/config_template/my/config_tproxy_26_02_2026_v1.json
 CLI_SUBSCRIPTION_URL="${1:-}"
 
 # Базовый URL для скачивания скриптов
